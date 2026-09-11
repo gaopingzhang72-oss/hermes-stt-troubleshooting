@@ -1,30 +1,56 @@
 # hermes-stt-troubleshooting
 
-一个 [Hermes Agent](https://hermes-agent.nousresearch.com) 技能（skill），用于修复语音转写（STT / speech-to-text）问题。
+A [Hermes Agent](https://hermes-agent.nousresearch.com) skill for fixing voice transcription (STT / speech-to-text) issues.
 
-## 它能解决什么
+## What it fixes
 
-- 转写总是失败（例如 Windows + NVIDIA 显卡上的 `Library cublas64_12.dll is not found or cannot be loaded`）
-- 非英语语音转写乱码（`stt.language` 设错，默认是 `en`）
-- 中文/多语言转写不准（`base` 模型偏英文）
-- 转写太慢（CPU vs GPU 加速）
+- Transcription always failing — e.g. `Library cublas64_12.dll is not found or cannot be loaded` on Windows + NVIDIA GPU
+- Garbled output for non-English speech (wrong `stt.language`, which defaults to `en`)
+- Poor accuracy for Chinese / multilingual speech (the `base` model is English-biased)
+- Slow transcription (CPU vs GPU)
 
-## 安装
+## Example: the missing-CUDA case
 
-把 `SKILL.md` 复制到 Hermes 的 skills 目录：
+**Symptom** — every transcription fails. The error log (`~/.hermes/logs/errors.log`) shows:
+
+```
+Local transcription failed: Library cublas64_12.dll is not found or cannot be loaded
+```
+
+**Root cause** — `stt.local.device: auto` selects CUDA because an NVIDIA GPU is present, but the CUDA cuBLAS runtime DLL is missing, so encoding crashes at transcription time.
+
+**Fix (use the GPU — ~0.3s per clip):**
+
+```bash
+hermes config set stt.local.device auto
+hermes config set stt.local.compute_type float16
+# install the missing DLL into the Hermes venv (Windows)
+<hermes-venv>/Scripts/pip.exe install nvidia-cublas-cu12
+# add the DLL dir to the user PATH, then restart Hermes
+```
+
+**Result** — transcription goes from failing (or 5–10s on CPU) to ~0.3s on an RTX 5060.
+
+## Install
 
 ```bash
 mkdir -p ~/.hermes/skills/autonomous-ai-agents/hermes-stt-troubleshooting
 cp SKILL.md ~/.hermes/skills/autonomous-ai-agents/hermes-stt-troubleshooting/
 ```
 
-Windows 下的路径：`%APPDATA%\hermes\skills\autonomous-ai-agents\hermes-stt-troubleshooting\`
+Windows: `%APPDATA%\hermes\skills\autonomous-ai-agents\hermes-stt-troubleshooting\`
 
-然后重启 Hermes（或开一个新会话）即可加载该技能。
+Restart Hermes (or start a new session) to load the skill.
 
-## 背景
+## Background
 
-这个技能是从一次真实的排障过程沉淀出来的：语音转写从「完全失败」→「不准」→「慢」，最终定位到三个隐藏根因（CUDA 库缺失、语言配置错误、模型选型不当），并一路修复到 GPU 加速。
+This skill was distilled from a real debugging session: voice transcription went from *totally broken* → *inaccurate* → *slow*, and the root causes turned out to be three hidden issues — a missing CUDA library, a wrong language setting, and an under-sized model — fixed all the way to GPU acceleration.
+
+## 中文说明
+
+这是一个 [Hermes Agent](https://hermes-agent.nousresearch.com) 技能，用于修复语音转写（STT）问题：转写失败（Windows + NVIDIA 显卡上缺 `cublas64_12.dll`）、非英语语音乱码（`stt.language` 默认 `en`）、中文/多语言不准（`base` 模型偏英文）、以及转写太慢（CPU vs GPU）。
+
+安装：把 `SKILL.md` 复制到 `~/.hermes/skills/autonomous-ai-agents/hermes-stt-troubleshooting/`（Windows 为 `%APPDATA%\hermes\skills\...`），然后重启 Hermes。
 
 ## License
 
