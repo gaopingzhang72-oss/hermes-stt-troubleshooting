@@ -1,0 +1,18 @@
+__pycache__/
+*.pyc
+*.log
+.DS_Store
+Thumbs.db
+
+# ---- 安全：密钥与本地私有配置，绝不提交 ----
+.env
+.env.*
+!.env.example
+*.env
+config.local.json
+*.local.json
+*.key
+*.pem
+*.p12
+credentials*
+secrets*
